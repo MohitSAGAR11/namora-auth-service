@@ -2,7 +2,6 @@ package com.namora.auth_service.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,11 +15,9 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Getter
-    @Value("${jwt.access-token.expiration}")
+    @Value("${jwt.accessTokenExpiration}")
     private Long accessTokenExpiration;
-
-    @Value("${jwt.refresh-token.expiration}")
+    @Value("${jwt.refreshTokenExpiration}")
     private Long refreshTokenExpiration;
 
     private SecretKey getSigningKey() {
@@ -77,5 +74,4 @@ public class JwtUtil {
     public Long getAccessTokenExpiration() {
         return accessTokenExpiration;
     }
-
 }
