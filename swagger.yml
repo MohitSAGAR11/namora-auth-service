@@ -1,0 +1,359 @@
+openapi: 3.0.3
+info:
+  title: Namora Auth Service API
+  description: |
+    Authentication service for Namora application providing user registration, login, logout, and token refresh capabilities.
+    
+    ## Authentication
+    Most endpoints require JWT Bearer token authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-access-token>
+    ```
+    
+    ## Token Flow
+    1. **Sign Up**: Register a new user account
+    2. **Sign In**: Login and receive access + refresh tokens
+    3. **Use Access Token**: Make authenticated requests
+    4. **Refresh Token**: Get new tokens when access token expires
+    5. **Logout**: Invalidate refresh token
+
+  version: 1.0.0
+  contact:
+    name: Namora Team
+    email: support@namora.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.namora.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+
+paths:
+  /api/auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account with email and password. Email must be unique.
+      operationId: signUp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+            examples:
+              validRequest:
+                summary: Valid sign up request
+                value:
+                  email: user@example.com
+                  password: SecurePass123!
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered successfully!
+        '400':
+          description: Bad request - Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidEmail:
+                  summary: Invalid email format
+                  value:
+                    timestamp: '2024-01-22T10:30:00'
+                    status: 400
+                    error: Bad Request
+                    message: Email is not valid
+                    path: /api/auth/signup
+                invalidPassword:
+                  summary: Weak password
+                  value:
+                    timestamp: '2024-01-22T10:30:00'
+                    status: 400
+                    error: Bad Request
+                    message: Password must be at least 8 characters
+                    path: /api/auth/signup
+        '409':
+          description: Conflict - User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: '2024-01-22T10:30:00'
+                status: 409
+                error: Conflict
+                message: User with email user@example.com already exists
+                path: /api/auth/signup
+
+  /api/auth/signin:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in to get access tokens
+      description: Authenticates user credentials and returns JWT access and refresh tokens.
+      operationId: signIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+            examples:
+              validRequest:
+                summary: Valid sign in request
+                value:
+                  email: user@example.com
+                  password: SecurePass123!
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                expiresIn: 3600000
+                email: user@example.com
+        '401':
+          description: Unauthorized - Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: '2024-01-22T10:30:00'
+                status: 401
+                error: Unauthorized
+                message: Invalid email or password
+                path: /api/auth/signin
+        '400':
+          description: Bad request - Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Invalidates the user's refresh token. Requires valid JWT access token.
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logout successfully!
+        '401':
+          description: Unauthorized - Invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: '2024-01-22T10:30:00'
+                status: 401
+                error: Unauthorized
+                message: Full authentication is required to access this resource
+                path: /api/auth/logout
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: |
+        Generates new access and refresh tokens using a valid refresh token.
+        The old refresh token is invalidated and a new one is issued.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            examples:
+              validRequest:
+                summary: Valid refresh token request
+                value:
+                  refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Successfully refreshed tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_access_token...
+                refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_refresh_token...
+                expiresIn: 3600000
+                email: user@example.com
+        '401':
+          description: Unauthorized - Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  summary: Invalid refresh token
+                  value:
+                    timestamp: '2024-01-22T10:30:00'
+                    status: 401
+                    error: Unauthorized
+                    message: Invalid refresh token
+                    path: /api/auth/refresh
+                expiredToken:
+                  summary: Expired refresh token
+                  value:
+                    timestamp: '2024-01-22T10:30:00'
+                    status: 401
+                    error: Unauthorized
+                    message: Refresh token has expired
+                    path: /api/auth/refresh
+                userNotFound:
+                  summary: User not found
+                  value:
+                    timestamp: '2024-01-22T10:30:00'
+                    status: 401
+                    error: Unauthorized
+                    message: User not found
+                    path: /api/auth/refresh
+        '400':
+          description: Bad request - Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from /api/auth/signin or /api/auth/refresh endpoints.
+        Format: Authorization: Bearer <token>
+
+  schemas:
+    SignUpRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address (must be unique)
+          example: user@example.com
+          pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        password:
+          type: string
+          format: password
+          description: User's password (minimum 8 characters recommended)
+          example: SecurePass123!
+          minLength: 8
+
+    SignInRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's registered email address
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          description: User's password
+          example: SecurePass123!
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token received from sign in or previous refresh
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token for authenticating API requests
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        refreshToken:
+          type: string
+          description: JWT refresh token for obtaining new access tokens
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNTE2MjM5MDIyfQ.different_signature_here
+        expiresIn:
+          type: integer
+          format: int64
+          description: Access token expiration time in milliseconds
+          example: 3600000
+        email:
+          type: string
+          format: email
+          description: Email of the authenticated user
+          example: user@example.com
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Time when the error occurred
+          example: '2024-01-22T10:30:00'
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error type
+          example: Bad Request
+        message:
+          type: string
+          description: Detailed error message
+          example: Validation failed
+        path:
+          type: string
+          description: API endpoint path
+          example: /api/auth/signup
+
+security: []
