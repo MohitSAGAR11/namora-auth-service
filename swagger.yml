@@ -18,15 +18,10 @@ info:
     5. **Logout**: Invalidate refresh token
 
   version: 1.0.0
-  contact:
-    name: Namora Team
-    email: support@namora.com
 
 servers:
   - url: http://localhost:8080
     description: Local development server
-  - url: https://api.namora.com
-    description: Production server
 
 tags:
   - name: Authentication
